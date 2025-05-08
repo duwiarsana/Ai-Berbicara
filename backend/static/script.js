@@ -40,6 +40,10 @@ function sendAudio() {
   const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
   const formData = new FormData();
   formData.append('audio', audioBlob, 'recording.wav');
+  
+  // Selalu gunakan model Gemma
+  formData.append('model_type', 'gemma');
+  statusDiv.textContent = 'Mengirim rekaman ke Gemma...'
 
   fetch('/api/voice', {
     method: 'POST',

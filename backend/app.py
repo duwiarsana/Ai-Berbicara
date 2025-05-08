@@ -9,6 +9,14 @@ import struct
 import numpy as np
 import io
 
+# Load environment variables dari .env file jika ada
+try:
+    from dotenv import load_dotenv
+    load_dotenv()  # mengambil variabel dari .env file
+    print("INFO: Berhasil memuat environment variables dari .env file")
+except ImportError:
+    print("WARNING: python-dotenv tidak terinstall, menggunakan environment variables sistem")
+
 app = Flask(__name__, static_url_path='', static_folder='static')
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
@@ -181,24 +189,31 @@ def voice_agent():
         text = transcribe_audio(temp_audio_path)
         print(f"Transcribed text: {text}")
 
-        # 2. Gunakan Ollama LLM lokal untuk respons yang cerdas
+        # 2. Gunakan LLM untuk respons yang cerdas
+        # Dapatkan parameter model_type jika ada
+        model_type = request.form.get('model_type', 'ollama')  # Default: ollama
+        print(f"INFO: Menggunakan model_type: {model_type}")
+        
+        # Buat prompt untuk LLM
+        prompt = f"Berikut adalah pesan dari pengguna: '{text}'. Berikan respons yang singkat, informatif, dan ramah dalam bahasa Indonesia."
+        
+        # Proses dengan model Gemma melalui Ollama
         try:
+            # Import modul Ollama client
             from llm_model.ollama_client import ask_llm
-            print("INFO: Menggunakan Ollama LLM untuk respons")
+            print("INFO: Menggunakan Gemma melalui Ollama untuk respons")
             
-            # Buat prompt untuk Ollama
-            prompt = f"Berikut adalah pesan dari pengguna: '{text}'. Berikan respons yang singkat, informatif, dan ramah dalam bahasa Indonesia. Maksimal 2 kalimat."
+            # Dapatkan respons dari Gemma via Ollama
+            llm_response = ask_llm(prompt, model="gemma:7b", temperature=0.7)
+            print(f"INFO: Respons dari Gemma: {llm_response}")
             
-            # Dapatkan respons dari Ollama
-            llm_response = ask_llm(prompt, model="llama3", temperature=0.7)
-            print(f"INFO: Respons dari Ollama: {llm_response}")
-            
-            # Gunakan respons dari Ollama
+            # Gunakan respons dari Gemma
             response_text = llm_response
+                
         except Exception as e:
-            print(f"ERROR: Gagal menggunakan Ollama LLM: {e}")
-            # Fallback ke respons sederhana jika Ollama gagal
-            response_text = f"Saya mendengar Anda mengatakan: {text}"
+            print(f"ERROR: Gagal menggunakan Gemma: {e}")
+            # Fallback ke respons sederhana jika Gemma gagal
+            response_text = f"Saya mendengar Anda mengatakan: {text}. Maaf, saya mengalami masalah dalam memproses respons."
 
         # 3. Konversi teks ke audio menggunakan gTTS yang lebih stabil
         audio_output_path = os.path.join(UPLOAD_FOLDER, f"output_{uuid.uuid4()}.mp3")
@@ -261,4 +276,6 @@ def index():
     return app.send_static_file('index.html')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5050, debug=True)
+    # Gunakan port dari environment variable jika ada
+    port = int(os.environ.get('PORT', 5050))
+    app.run(host='0.0.0.0', port=port, debug=True)

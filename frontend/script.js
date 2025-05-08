@@ -40,8 +40,15 @@ function sendAudio() {
   const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
   const formData = new FormData();
   formData.append('audio', audioBlob, 'recording.wav');
-
-  statusDiv.textContent = 'Mengirim rekaman...';
+  
+  // Tambahkan parameter model_type berdasarkan pilihan pengguna
+  const modelSelect = document.getElementById('modelSelect');
+  if (modelSelect) {
+    formData.append('model_type', modelSelect.value);
+    statusDiv.textContent = `Mengirim rekaman ke ${modelSelect.value}...`;
+  } else {
+    statusDiv.textContent = 'Mengirim rekaman...';
+  }
 
   fetch('http://localhost:5050/api/voice', {
     method: 'POST',
