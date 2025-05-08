@@ -8,6 +8,7 @@ import wave
 import struct
 import numpy as np
 import io
+from tts_model.audio_enhancer import enhance_audio_quality
 
 # Load environment variables dari .env file jika ada
 try:
@@ -138,6 +139,11 @@ def text_to_speech(text, output_path, voice_type="default"):
         # Coba gunakan Coqui TTS untuk suara yang lebih natural
         print(f"INFO: Menggunakan Coqui TTS dengan nada suara: {voice_type}")
         from TTS.api import TTS
+        from tts_model.text_processor import preprocess_text_for_coqui
+        
+        # Proses teks untuk meningkatkan intonasi
+        processed_text = preprocess_text_for_coqui(text)
+        print(f"INFO: Teks setelah preprocessing: {processed_text[:100]}...")
         
         # Inisialisasi TTS dengan model XTTS v2
         print("INFO: Memuat model Coqui TTS...")
@@ -174,19 +180,33 @@ def text_to_speech(text, output_path, voice_type="default"):
         
         # Tambahkan parameter untuk membuat suara lebih natural
         if speaker_wav:
+            # Gunakan sampel suara dengan pengaturan tambahan
             tts.tts_to_file(
-                text=text, 
+                text=processed_text, 
                 file_path=output_path, 
                 speaker_wav=speaker_wav, 
-                language="id"
+                language="id",
+                # Tambahkan pengaturan untuk suara lebih natural
+                speed=0.95,  # Sedikit lebih lambat untuk kejelasan
+                temperature=0.75  # Lebih tinggi untuk variasi yang lebih natural
             )
+            
+            # Post-process audio untuk meningkatkan kualitas
+            enhance_audio_quality(output_path)
+            
         else:
             # Jika tidak ada sampel suara, gunakan suara bawaan dengan pengaturan default
             tts.tts_to_file(
-                text=text, 
+                text=processed_text, 
                 file_path=output_path, 
-                language="id"
+                language="id",
+                # Tambahkan pengaturan untuk suara lebih natural
+                speed=0.95,  # Sedikit lebih lambat untuk kejelasan
+                temperature=0.75  # Lebih tinggi untuk variasi yang lebih natural
             )
+            
+            # Post-process audio untuk meningkatkan kualitas
+            enhance_audio_quality(output_path)
             
         print("INFO: Sintesis suara berhasil disimpan ke", output_path)
         return True

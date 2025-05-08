@@ -24,6 +24,13 @@ def text_to_speech_elevenlabs(text, output_path, voice_id=None):
         # Dapatkan voice ID dari environment variable jika tidak ditentukan
         if not voice_id:
             voice_id = os.environ.get("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")  # Default: Suara Indonesia
+        
+        # Import text processor untuk meningkatkan kualitas suara
+        from tts_model.text_processor import preprocess_text_for_tts
+        
+        # Proses teks untuk meningkatkan intonasi
+        processed_text = preprocess_text_for_tts(text)
+        print(f"INFO: Teks setelah preprocessing: {processed_text[:100]}...")
             
         # URL endpoint
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
@@ -35,17 +42,24 @@ def text_to_speech_elevenlabs(text, output_path, voice_id=None):
             "xi-api-key": api_key
         }
         
+        # Deteksi jika teks menggunakan SSML
+        is_ssml = processed_text.startswith('<speak>') and processed_text.endswith('</speak>')
+        
         # Data untuk request
         data = {
-            "text": text,
+            "text": processed_text,
             "model_id": "eleven_multilingual_v2",
             "voice_settings": {
-                "stability": 0.5,
-                "similarity_boost": 0.75,
-                "style": 0.0,
+                "stability": 0.3,  # Lebih rendah untuk variasi yang lebih natural
+                "similarity_boost": 0.8,  # Lebih tinggi untuk tetap mirip dengan suara asli
+                "style": 0.5,  # Tambahkan sedikit gaya untuk suara lebih ekspresif
                 "use_speaker_boost": True
             }
         }
+        
+        # Tambahkan flag SSML jika teks menggunakan format SSML
+        if is_ssml:
+            data["text_type"] = "ssml"
         
         # Kirim request ke ElevenLabs API
         print("INFO: Mengirim request ke ElevenLabs API...")

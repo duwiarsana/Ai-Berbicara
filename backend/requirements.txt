@@ -13,3 +13,5 @@ google-generativeai==0.3.1
 python-dotenv==1.0.0
 # ElevenLabs API (opsional, untuk suara yang lebih natural)
 # elevenlabs==0.2.26
+# Audio processing untuk meningkatkan kualitas suara
+scipy==1.10.1
