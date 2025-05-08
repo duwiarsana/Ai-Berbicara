@@ -1,0 +1,7 @@
+flask
+flask-cors
+torch
+requests
+TTS
+# whisper, coqui-tts, or espeak-ng to be installed as needed
+# ollama or llama-cpp-python for LLM integration

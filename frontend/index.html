@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voice AI Agent Lokal</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white p-8 rounded shadow w-full max-w-md">
+    <h1 class="text-2xl font-bold mb-4 text-center">Voice AI Agent Lokal</h1>
+    <div class="flex flex-col items-center space-y-4">
+      <button id="recordBtn" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 focus:outline-none">🎤 Tekan & Bicara</button>
+      <div id="status" class="text-gray-600 text-sm"></div>
+      <audio id="audioReply" controls class="w-full mt-4 hidden"></audio>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
