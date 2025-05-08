@@ -5,6 +5,8 @@ gTTS==2.5.1
 SpeechRecognition==3.10.0
 numpy==1.22.0
 TTS==0.22.0
+bark
+soundfile
 # Dependensi yang lebih ringan dan mudah diinstal
 openai-whisper==20231117
 # Google Gemini API

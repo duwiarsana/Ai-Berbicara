@@ -44,12 +44,7 @@ function sendAudio() {
   // Selalu gunakan model Gemma
   formData.append('model_type', 'gemma');
   
-  // Tambahkan parameter voice_type berdasarkan pilihan pengguna
-  const voiceSelect = document.getElementById('voiceSelect');
-  const voiceType = voiceSelect.value;
-  console.log('Menggunakan voice_type:', voiceType);
-  formData.append('voice_type', voiceType);
-  statusDiv.textContent = `Mengirim rekaman ke Gemma dengan suara ${voiceType}...`;
+  statusDiv.textContent = `Mengirim rekaman ke Gemma...`;
 
   fetch('/api/voice', {
     method: 'POST',

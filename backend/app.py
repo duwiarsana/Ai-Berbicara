@@ -114,65 +114,14 @@ def get_available_voices():
 def text_to_speech(text, output_path, voice_type="default"):
     """
     Mengubah teks menjadi ucapan dan menyimpannya ke file.
-    
-    Args:
-        text (str): Teks yang akan diubah menjadi ucapan
-        output_path (str): Path untuk menyimpan file audio output
-        voice_type (str): Jenis suara yang digunakan (default, duwi, elevenlabs, dll)
-        
-    Returns:
-        bool: True jika berhasil, False jika gagal
     """
-    # Cek apakah menggunakan ElevenLabs
-    use_elevenlabs = voice_type == "elevenlabs"
-    
-    # Jangan fallback ke gTTS hanya karena output_path .mp3 jika voice_type == "duwi"
-    if output_path.endswith('.mp3') and voice_type != "duwi":
-        try:
-            print(f"INFO: Menggunakan gTTS untuk menghasilkan audio cepat")
-            from gtts import gTTS
-            tts = gTTS(text=text, lang='id')
-            tts.save(output_path)
-            print(f"INFO: File audio berhasil disimpan ke: {output_path}")
-            return True
-        except Exception as e:
-            print(f"ERROR: Gagal menggunakan gTTS: {str(e)}")
-            # Lanjutkan dengan metode lain jika gagal
-    
-    # Jika menggunakan ElevenLabs, coba gunakan ElevenLabs API
-    if use_elevenlabs:
-        try:
-            # Import ElevenLabs client
-            from tts_model.elevenlabs_client import text_to_speech_elevenlabs
-            
-            # Gunakan ElevenLabs untuk TTS
-            success = text_to_speech_elevenlabs(text, output_path)
-            
-            # Jika berhasil, return True
-            if success:
-                return True
-                
-            # Jika gagal, lanjutkan ke Coqui TTS sebagai fallback
-            print("WARNING: ElevenLabs gagal, menggunakan Coqui TTS sebagai fallback")
-        except Exception as e:
-            print(f"ERROR: Gagal menggunakan ElevenLabs: {str(e)}")
-            print("WARNING: Menggunakan Coqui TTS sebagai fallback")
-    
-    # Jika tidak menggunakan ElevenLabs atau ElevenLabs gagal, gunakan Coqui TTS
+    # Selalu gunakan TTS default (misal gTTS Bahasa Indonesia)
     try:
-        # Coba gunakan Coqui TTS untuk suara yang lebih natural
-        print(f"INFO: Menggunakan Coqui TTS dengan nada suara: {voice_type}")
-        from TTS.api import TTS
-        from tts_model.text_processor import preprocess_text_for_coqui
-        
-        # Proses teks untuk meningkatkan intonasi
-        processed_text = preprocess_text_for_coqui(text)
-        print(f"INFO: Teks setelah preprocessing: {processed_text[:100]}...")
-        
-        # Inisialisasi TTS dengan model XTTS v2
-        print("INFO: Memuat model Coqui TTS...")
-        # Tambahkan parameter untuk menerima lisensi secara otomatis
-        os.environ["COQUI_TOS_AGREED"] = "1"
+        print(f"INFO: Menggunakan gTTS untuk menghasilkan audio default Bahasa Indonesia")
+        from gtts import gTTS
+        tts = gTTS(text=text, lang='id', tld='co.id')
+        tts.save(output_path)
+        print(f"INFO: File audio berhasil disimpan ke: {output_path}")
         tts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False)
         
         # Pilih file referensi suara berdasarkan voice_type
@@ -271,7 +220,7 @@ def text_to_speech(text, output_path, voice_type="default"):
         # Fallback ke gTTS jika Coqui TTS gagal
         try:
             from gtts import gTTS
-            tts = gTTS(text=text, lang='id')
+            tts = gTTS(text=text, lang='id', tld='co.id')
             tts.save(output_path)
             print("INFO: gTTS berhasil")
             return True
@@ -372,7 +321,7 @@ def voice_agent():
                 print("WARNING: text_to_speech gagal, fallback ke gTTS")
                 audio_output_path = os.path.join(UPLOAD_FOLDER, f"output_{uuid.uuid4()}.mp3")
                 from gtts import gTTS
-                tts = gTTS(text=response_text, lang='id')
+                tts = gTTS(text=response_text, lang='id', tld='co.id')
                 tts.save(audio_output_path)
         else:
             # Untuk selain duwi, tetap gunakan mp3/gTTS jika perlu
@@ -383,7 +332,7 @@ def voice_agent():
                 print("WARNING: text_to_speech gagal, fallback ke gTTS")
                 audio_output_path = os.path.join(UPLOAD_FOLDER, f"output_{uuid.uuid4()}.mp3")
                 from gtts import gTTS
-                tts = gTTS(text=response_text, lang='id')
+                tts = gTTS(text=response_text, lang='id', tld='co.id')
                 tts.save(audio_output_path)
         print(f"INFO: File audio berhasil disimpan ke: {audio_output_path}")
         print(f"INFO: File exists: {os.path.exists(audio_output_path)}, Size: {os.path.getsize(audio_output_path) if os.path.exists(audio_output_path) else 0} bytes")
