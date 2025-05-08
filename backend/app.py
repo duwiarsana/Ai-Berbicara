@@ -27,76 +27,26 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Fungsi sederhana untuk mensimulasikan transkripsi audio
 def transcribe_audio(audio_path):
-    # DEBUG: Print python executable dan versi
-    import sys, os
-    print('PYTHON EXECUTABLE:', sys.executable)
-    print('PYTHON VERSION:', sys.version)
-    print('Akan transkripsi file:', audio_path)
-    
-    # Pastikan file audio ada
+    """
+    Transkripsi audio ke teks Bahasa Indonesia menggunakan HuggingFace Whisper (cahya/whisper-medium-id).
+    """
+    import os
     if not os.path.exists(audio_path):
         print('ERROR: File audio tidak ditemukan:', audio_path)
         return '(Transkripsi gagal: file audio tidak ditemukan)'
-    
-    # Cek ukuran file
-    file_size = os.path.getsize(audio_path)
-    print(f'INFO: Ukuran file audio: {file_size} bytes')
-    if file_size < 100:  # File terlalu kecil, mungkin kosong
-        print('WARNING: File audio terlalu kecil, mungkin kosong')
-        return '(Transkripsi gagal: file audio terlalu kecil)'
-    
-    # GUNAKAN SPEECHRECOGNITION DENGAN FORMAT WAV LANGSUNG
     try:
-        print('INFO: Mencoba menggunakan SpeechRecognition dengan format WAV langsung')
-        import speech_recognition as sr
-        import subprocess
-        
-        # Konversi audio ke format yang didukung menggunakan ffmpeg
-        print('INFO: Mengkonversi audio menggunakan ffmpeg')
-        converted_path = audio_path + ".converted.wav"
-        subprocess.run(['ffmpeg', '-y', '-i', audio_path, '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1', converted_path], 
-                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        
-        # Cek apakah konversi berhasil
-        if not os.path.exists(converted_path) or os.path.getsize(converted_path) < 100:
-            print('ERROR: Konversi audio gagal')
-            return '(Transkripsi gagal: konversi audio gagal)'
-        
-        # Gunakan SpeechRecognition dengan Sphinx (offline, tidak perlu internet)
-        print('INFO: Menggunakan SpeechRecognition dengan Sphinx')
-        recognizer = sr.Recognizer()
-        with sr.AudioFile(converted_path) as source:
-            audio_data = recognizer.record(source)
-            
-        # Coba beberapa engine transkripsi
-        try:
-            # Coba Google Speech Recognition (online)
-            print('INFO: Mencoba Google Speech Recognition')
-            text = recognizer.recognize_google(audio_data, language='id-ID')
-            print('INFO: Google Speech Recognition berhasil:', text)
-        except:
-            try:
-                # Fallback ke Sphinx (offline)
-                print('INFO: Mencoba Sphinx')
-                text = recognizer.recognize_sphinx(audio_data)
-                print('INFO: Sphinx berhasil:', text)
-            except:
-                # Jika semua gagal, gunakan teks default
-                print('INFO: Semua engine transkripsi gagal, menggunakan teks default')
-                text = "Halo, tolong jelaskan apa itu kecerdasan buatan dengan sederhana."
-        
-        # Hapus file konversi
-        try:
-            os.remove(converted_path)
-        except:
-            pass
-            
+        from transformers import pipeline
+        print('INFO: Transkripsi audio dengan HuggingFace Whisper Indonesia...')
+        pipe = pipeline("automatic-speech-recognition", model="cahya/whisper-medium-id")
+        result = pipe(audio_path)
+        text = result["text"]
+        print('INFO: Hasil transkripsi HuggingFace Whisper:', text)
         return text
     except Exception as e:
-        print(f"ERROR: SpeechRecognition error: {e}")
-        # Jika semua gagal, return string kosong agar backend bisa deteksi error
-        print("ERROR: Semua engine transkripsi gagal. Tidak ada hasil transkripsi.")
-        return ""
+        print(f'ERROR: HuggingFace Whisper gagal: {e}')
+        return '(Transkripsi gagal: HuggingFace Whisper error)'
+
+
 
 # Folder untuk sampel suara referensi
 VOICE_SAMPLES_FOLDER = os.path.join(os.path.dirname(__file__), 'voice_samples')
@@ -115,19 +65,13 @@ def text_to_speech(text, output_path, voice_type="default"):
     """
     Mengubah teks menjadi ucapan dan menyimpannya ke file.
     """
-    # Selalu gunakan TTS default (misal gTTS Bahasa Indonesia)
+    # Selalu gunakan gTTS Bahasa Indonesia
     try:
-        print(f"INFO: Menggunakan gTTS untuk menghasilkan audio default Bahasa Indonesia")
+        print(f"INFO: Menggunakan gTTS untuk menghasilkan audio Bahasa Indonesia")
         from gtts import gTTS
         tts = gTTS(text=text, lang='id', tld='co.id')
         tts.save(output_path)
         print(f"INFO: File audio berhasil disimpan ke: {output_path}")
-        tts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False)
-        
-        # Pilih file referensi suara berdasarkan voice_type
-        speaker_wav = None
-        
-        # Tentukan file sampel suara berdasarkan voice_type
         speaker_wav = None
         if voice_type == "duwi":
             # Gunakan file duwi.wav
@@ -165,54 +109,7 @@ def text_to_speech(text, output_path, voice_type="default"):
         # Sintesis suara dengan Coqui TTS
         print("INFO: Melakukan sintesis suara...")
         
-        # Tambahkan parameter untuk membuat suara lebih natural
-        if speaker_wav:
-            # Gunakan sampel suara dengan pengaturan tambahan
-            if voice_type == "duwi":
-                # Pengaturan khusus untuk suara Duwi
-                tts.tts_to_file(
-                    text=processed_text, 
-                    file_path=output_path, 
-                    speaker_wav=speaker_wav, 
-                    language="id",
-                    # Pengaturan optimal untuk suara Duwi
-                    speed=0.92,  # Sedikit lebih lambat untuk kejelasan
-                    temperature=0.8,  # Lebih tinggi untuk variasi yang lebih natural
-                    # Pengaturan tambahan untuk suara Duwi
-                    speaker_wav_volume_adjust=True,  # Otomatis menyesuaikan volume
-                    speaker_wav_silence_padding=0.2  # Tambahkan padding untuk hasil lebih baik
-                )
-                print("INFO: Menggunakan pengaturan khusus untuk suara Duwi")
-            else:
-                # Pengaturan default untuk sampel suara lainnya
-                tts.tts_to_file(
-                    text=processed_text, 
-                    file_path=output_path, 
-                    speaker_wav=speaker_wav, 
-                    language="id",
-                    # Tambahkan pengaturan untuk suara lebih natural
-                    speed=0.95,  # Sedikit lebih lambat untuk kejelasan
-                    temperature=0.75  # Lebih tinggi untuk variasi yang lebih natural
-                )
-            
-            # Post-process audio untuk meningkatkan kualitas
-            enhance_audio_quality(output_path)
-            
-        else:
-            # Jika tidak ada sampel suara, gunakan suara bawaan dengan pengaturan default
-            tts.tts_to_file(
-                text=processed_text, 
-                file_path=output_path, 
-                language="id",
-                # Tambahkan pengaturan untuk suara lebih natural
-                speed=0.95,  # Sedikit lebih lambat untuk kejelasan
-                temperature=0.75  # Lebih tinggi untuk variasi yang lebih natural
-            )
-            
-            # Post-process audio untuk meningkatkan kualitas
-            enhance_audio_quality(output_path)
-            
-        print("INFO: Sintesis suara berhasil disimpan ke", output_path)
+        # Semua proses TTS kini hanya menggunakan gTTS. Blok Coqui TTS dihapus.
         return True
     except Exception as e:
         print(f"ERROR: Coqui TTS gagal: {str(e)}")
