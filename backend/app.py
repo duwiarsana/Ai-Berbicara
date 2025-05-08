@@ -110,6 +110,30 @@ def get_available_voices():
 
 # Fungsi untuk text-to-speech dengan pemilihan nada suara
 def text_to_speech(text, output_path, voice_type="default"):
+    # Cek apakah menggunakan ElevenLabs
+    use_elevenlabs = os.environ.get("ELEVENLABS_API_KEY") and voice_type == "elevenlabs"
+    
+    if use_elevenlabs:
+        # Gunakan ElevenLabs untuk suara yang sangat natural
+        try:
+            print("INFO: Menggunakan ElevenLabs TTS...")
+            from tts_model.elevenlabs_client import text_to_speech_elevenlabs
+            
+            # Dapatkan voice ID dari environment variable
+            voice_id = os.environ.get("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")
+            
+            # Sintesis suara dengan ElevenLabs
+            success = text_to_speech_elevenlabs(text, output_path, voice_id)
+            if success:
+                print("INFO: ElevenLabs TTS berhasil")
+                return True
+            else:
+                print("WARNING: ElevenLabs TTS gagal, fallback ke Coqui TTS")
+        except Exception as e:
+            print(f"ERROR: ElevenLabs TTS gagal: {str(e)}")
+            print("INFO: Fallback ke Coqui TTS...")
+    
+    # Jika tidak menggunakan ElevenLabs atau ElevenLabs gagal, gunakan Coqui TTS
     try:
         # Coba gunakan Coqui TTS untuk suara yang lebih natural
         print(f"INFO: Menggunakan Coqui TTS dengan nada suara: {voice_type}")
@@ -122,8 +146,16 @@ def text_to_speech(text, output_path, voice_type="default"):
         # Pilih file referensi suara berdasarkan voice_type
         speaker_wav = None
         
-        # Jika voice_type adalah "default", gunakan suara default
-        if voice_type != "default":
+        # Jika voice_type adalah "default", gunakan sampel suara default yang sudah disediakan
+        if voice_type == "default":
+            # Gunakan sampel suara default dari folder voice_samples
+            default_sample = os.path.join(VOICE_SAMPLES_FOLDER, "default_male.wav")
+            if os.path.exists(default_sample):
+                speaker_wav = default_sample
+                print(f"INFO: Menggunakan file referensi suara default: {default_sample}")
+            else:
+                print("WARNING: File suara default tidak ditemukan, menggunakan suara bawaan XTTS")
+        elif voice_type != "elevenlabs":  # Skip jika voice_type adalah elevenlabs
             # Cek apakah file suara ada di folder voice_samples
             voice_file = os.path.join(VOICE_SAMPLES_FOLDER, voice_type)
             if os.path.exists(voice_file):
@@ -131,10 +163,31 @@ def text_to_speech(text, output_path, voice_type="default"):
                 print(f"INFO: Menggunakan file referensi suara: {voice_file}")
             else:
                 print(f"WARNING: File suara {voice_file} tidak ditemukan, menggunakan suara default")
+                # Coba gunakan sampel suara default
+                default_sample = os.path.join(VOICE_SAMPLES_FOLDER, "default_male.wav")
+                if os.path.exists(default_sample):
+                    speaker_wav = default_sample
+                    print(f"INFO: Menggunakan file referensi suara default: {default_sample}")
         
         # Sintesis suara dengan Coqui TTS
         print("INFO: Melakukan sintesis suara...")
-        tts.tts_to_file(text=text, file_path=output_path, speaker_wav=speaker_wav, language="id")
+        
+        # Tambahkan parameter untuk membuat suara lebih natural
+        if speaker_wav:
+            tts.tts_to_file(
+                text=text, 
+                file_path=output_path, 
+                speaker_wav=speaker_wav, 
+                language="id"
+            )
+        else:
+            # Jika tidak ada sampel suara, gunakan suara bawaan dengan pengaturan default
+            tts.tts_to_file(
+                text=text, 
+                file_path=output_path, 
+                language="id"
+            )
+            
         print("INFO: Sintesis suara berhasil disimpan ke", output_path)
         return True
     except Exception as e:
@@ -149,7 +202,7 @@ def text_to_speech(text, output_path, voice_type="default"):
             return True
         except Exception as e2:
             print(f"ERROR: gTTS juga gagal: {str(e2)}")
-            raise
+            return False
 
 @app.route('/api/voice', methods=['GET'])
 def voice_health():

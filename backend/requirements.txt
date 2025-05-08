@@ -11,3 +11,5 @@ openai-whisper==20231117
 google-generativeai==0.3.1
 # Environment variables
 python-dotenv==1.0.0
+# ElevenLabs API (opsional, untuk suara yang lebih natural)
+# elevenlabs==0.2.26
