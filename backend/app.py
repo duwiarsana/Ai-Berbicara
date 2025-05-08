@@ -111,28 +111,38 @@ def get_available_voices():
 
 # Fungsi untuk text-to-speech dengan pemilihan nada suara
 def text_to_speech(text, output_path, voice_type="default"):
-    # Cek apakah menggunakan ElevenLabs
-    use_elevenlabs = os.environ.get("ELEVENLABS_API_KEY") and voice_type == "elevenlabs"
+    """
+    Mengubah teks menjadi ucapan dan menyimpannya ke file.
     
+    Args:
+        text (str): Teks yang akan diubah menjadi ucapan
+        output_path (str): Path untuk menyimpan file audio output
+        voice_type (str): Jenis suara yang digunakan (default, duwi, elevenlabs, dll)
+        
+    Returns:
+        bool: True jika berhasil, False jika gagal
+    """
+    # Cek apakah menggunakan ElevenLabs
+    use_elevenlabs = voice_type == "elevenlabs"
+    
+    # Jika menggunakan ElevenLabs, coba gunakan ElevenLabs API
     if use_elevenlabs:
-        # Gunakan ElevenLabs untuk suara yang sangat natural
         try:
-            print("INFO: Menggunakan ElevenLabs TTS...")
+            # Import ElevenLabs client
             from tts_model.elevenlabs_client import text_to_speech_elevenlabs
             
-            # Dapatkan voice ID dari environment variable
-            voice_id = os.environ.get("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")
+            # Gunakan ElevenLabs untuk TTS
+            success = text_to_speech_elevenlabs(text, output_path)
             
-            # Sintesis suara dengan ElevenLabs
-            success = text_to_speech_elevenlabs(text, output_path, voice_id)
+            # Jika berhasil, return True
             if success:
-                print("INFO: ElevenLabs TTS berhasil")
                 return True
-            else:
-                print("WARNING: ElevenLabs TTS gagal, fallback ke Coqui TTS")
+                
+            # Jika gagal, lanjutkan ke Coqui TTS sebagai fallback
+            print("WARNING: ElevenLabs gagal, menggunakan Coqui TTS sebagai fallback")
         except Exception as e:
-            print(f"ERROR: ElevenLabs TTS gagal: {str(e)}")
-            print("INFO: Fallback ke Coqui TTS...")
+            print(f"ERROR: Gagal menggunakan ElevenLabs: {str(e)}")
+            print("WARNING: Menggunakan Coqui TTS sebagai fallback")
     
     # Jika tidak menggunakan ElevenLabs atau ElevenLabs gagal, gunakan Coqui TTS
     try:
@@ -152,15 +162,27 @@ def text_to_speech(text, output_path, voice_type="default"):
         # Pilih file referensi suara berdasarkan voice_type
         speaker_wav = None
         
-        # Jika voice_type adalah "default", gunakan sampel suara default yang sudah disediakan
-        if voice_type == "default":
-            # Gunakan sampel suara default dari folder voice_samples
-            default_sample = os.path.join(VOICE_SAMPLES_FOLDER, "default_male.wav")
-            if os.path.exists(default_sample):
-                speaker_wav = default_sample
-                print(f"INFO: Menggunakan file referensi suara default: {default_sample}")
+        # Tentukan file sampel suara berdasarkan voice_type
+        speaker_wav = None
+        if voice_type == "duwi":
+            # Gunakan file duwi.wav
+            duwi_sample = os.path.join(os.path.dirname(os.path.abspath(__file__)), "voice_samples", "duwi.wav")
+            if os.path.exists(duwi_sample):
+                speaker_wav = duwi_sample
+                print(f"INFO: Menggunakan sampel suara: {duwi_sample}")
             else:
-                print("WARNING: File suara default tidak ditemukan, menggunakan suara bawaan XTTS")
+                print("WARNING: File duwi.wav tidak ditemukan, menggunakan suara default")
+                # Fallback ke default
+                voice_type = "default"
+                
+        if voice_type == "default":
+            # Coba gunakan file default_male.wav jika ada
+            default_male = os.path.join(os.path.dirname(os.path.abspath(__file__)), "voice_samples", "default_male.wav")
+            if os.path.exists(default_male):
+                speaker_wav = default_male
+            else:
+                # Jika tidak ada, gunakan default dari model
+                print("WARNING: File default_male.wav tidak ditemukan, menggunakan suara default")
         elif voice_type != "elevenlabs":  # Skip jika voice_type adalah elevenlabs
             # Cek apakah file suara ada di folder voice_samples
             voice_file = os.path.join(VOICE_SAMPLES_FOLDER, voice_type)
@@ -181,15 +203,32 @@ def text_to_speech(text, output_path, voice_type="default"):
         # Tambahkan parameter untuk membuat suara lebih natural
         if speaker_wav:
             # Gunakan sampel suara dengan pengaturan tambahan
-            tts.tts_to_file(
-                text=processed_text, 
-                file_path=output_path, 
-                speaker_wav=speaker_wav, 
-                language="id",
-                # Tambahkan pengaturan untuk suara lebih natural
-                speed=0.95,  # Sedikit lebih lambat untuk kejelasan
-                temperature=0.75  # Lebih tinggi untuk variasi yang lebih natural
-            )
+            if voice_type == "duwi":
+                # Pengaturan khusus untuk suara Duwi
+                tts.tts_to_file(
+                    text=processed_text, 
+                    file_path=output_path, 
+                    speaker_wav=speaker_wav, 
+                    language="id",
+                    # Pengaturan optimal untuk suara Duwi
+                    speed=0.92,  # Sedikit lebih lambat untuk kejelasan
+                    temperature=0.8,  # Lebih tinggi untuk variasi yang lebih natural
+                    # Pengaturan tambahan untuk suara Duwi
+                    speaker_wav_volume_adjust=True,  # Otomatis menyesuaikan volume
+                    speaker_wav_silence_padding=0.2  # Tambahkan padding untuk hasil lebih baik
+                )
+                print("INFO: Menggunakan pengaturan khusus untuk suara Duwi")
+            else:
+                # Pengaturan default untuk sampel suara lainnya
+                tts.tts_to_file(
+                    text=processed_text, 
+                    file_path=output_path, 
+                    speaker_wav=speaker_wav, 
+                    language="id",
+                    # Tambahkan pengaturan untuk suara lebih natural
+                    speed=0.95,  # Sedikit lebih lambat untuk kejelasan
+                    temperature=0.75  # Lebih tinggi untuk variasi yang lebih natural
+                )
             
             # Post-process audio untuk meningkatkan kualitas
             enhance_audio_quality(output_path)

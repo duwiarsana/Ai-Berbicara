@@ -46,12 +46,10 @@ function sendAudio() {
   
   // Tambahkan parameter voice_type berdasarkan pilihan pengguna
   const voiceSelect = document.getElementById('voiceSelect');
-  if (voiceSelect) {
-    formData.append('voice_type', voiceSelect.value);
-    statusDiv.textContent = `Mengirim rekaman ke Gemma dengan suara ${voiceSelect.value}...`;
-  } else {
-    statusDiv.textContent = 'Mengirim rekaman ke Gemma...';
-  }
+  const voiceType = voiceSelect.value;
+  console.log('Menggunakan voice_type:', voiceType);
+  formData.append('voice_type', voiceType);
+  statusDiv.textContent = `Mengirim rekaman ke Gemma dengan suara ${voiceType}...`;
 
   fetch('/api/voice', {
     method: 'POST',
