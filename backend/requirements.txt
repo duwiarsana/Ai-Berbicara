@@ -1,7 +1,9 @@
-flask
-flask-cors
-torch
-requests
-TTS
-# whisper, coqui-tts, or espeak-ng to be installed as needed
-# ollama or llama-cpp-python for LLM integration
+flask==2.3.3
+flask-cors==4.0.0
+requests==2.31.0
+gTTS==2.5.1
+SpeechRecognition==3.10.0
+numpy==2.2.0
+TTS==0.22.0
+# Dependensi yang lebih ringan dan mudah diinstal
+openai-whisper==20231117

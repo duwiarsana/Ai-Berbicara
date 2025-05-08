@@ -41,19 +41,43 @@ function sendAudio() {
   const formData = new FormData();
   formData.append('audio', audioBlob, 'recording.wav');
 
+  statusDiv.textContent = 'Mengirim rekaman...';
+
   fetch('http://localhost:5050/api/voice', {
     method: 'POST',
-    mode: 'no-cors',
     body: formData
   })
-    .then(res => res.blob())
-    .then(blob => {
-      audioReply.src = URL.createObjectURL(blob);
-      audioReply.classList.remove('hidden');
-      audioReply.play();
-      statusDiv.textContent = 'AI menjawab dengan suara.';
+    .then(response => {
+      if (!response.ok) {
+        return response.json().then(data => {
+          throw new Error(data.error || 'Network response was not ok');
+        });
+      }
+      return response.blob();
     })
-    .catch(() => {
-      statusDiv.textContent = 'Gagal mendapatkan respon dari AI.';
+    .then(blob => {
+      const audioUrl = URL.createObjectURL(blob);
+      
+      // Reset audio element
+      audioReply.pause();
+      audioReply.currentTime = 0;
+      audioReply.src = audioUrl;
+      
+      // Show audio controls
+      audioReply.classList.remove('hidden');
+      
+      // Play audio
+      return audioReply.play()
+        .then(() => {
+          statusDiv.textContent = 'AI telah merespons. Memutar audio...';
+        })
+        .catch(error => {
+          console.error('Error playing audio:', error);
+          statusDiv.textContent = 'Audio siap. Klik play untuk mendengarkan.';
+        });
+    })
+    .catch((error) => {
+      console.error('Error:', error);
+      statusDiv.textContent = 'Error: ' + error.message;
     });
 }
