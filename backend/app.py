@@ -94,8 +94,9 @@ def transcribe_audio(audio_path):
         return text
     except Exception as e:
         print(f"ERROR: SpeechRecognition error: {e}")
-        # Fallback ke teks default jika semua gagal
-        return "Halo, tolong jelaskan apa itu kecerdasan buatan dengan sederhana."
+        # Jika semua gagal, return string kosong agar backend bisa deteksi error
+        print("ERROR: Semua engine transkripsi gagal. Tidak ada hasil transkripsi.")
+        return ""
 
 # Folder untuk sampel suara referensi
 VOICE_SAMPLES_FOLDER = os.path.join(os.path.dirname(__file__), 'voice_samples')
@@ -124,6 +125,19 @@ def text_to_speech(text, output_path, voice_type="default"):
     """
     # Cek apakah menggunakan ElevenLabs
     use_elevenlabs = voice_type == "elevenlabs"
+    
+    # Jangan fallback ke gTTS hanya karena output_path .mp3 jika voice_type == "duwi"
+    if output_path.endswith('.mp3') and voice_type != "duwi":
+        try:
+            print(f"INFO: Menggunakan gTTS untuk menghasilkan audio cepat")
+            from gtts import gTTS
+            tts = gTTS(text=text, lang='id')
+            tts.save(output_path)
+            print(f"INFO: File audio berhasil disimpan ke: {output_path}")
+            return True
+        except Exception as e:
+            print(f"ERROR: Gagal menggunakan gTTS: {str(e)}")
+            # Lanjutkan dengan metode lain jika gagal
     
     # Jika menggunakan ElevenLabs, coba gunakan ElevenLabs API
     if use_elevenlabs:
@@ -157,6 +171,8 @@ def text_to_speech(text, output_path, voice_type="default"):
         
         # Inisialisasi TTS dengan model XTTS v2
         print("INFO: Memuat model Coqui TTS...")
+        # Tambahkan parameter untuk menerima lisensi secara otomatis
+        os.environ["COQUI_TOS_AGREED"] = "1"
         tts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False)
         
         # Pilih file referensi suara berdasarkan voice_type
@@ -300,6 +316,14 @@ def voice_agent():
         # 1. Transkripsi audio (saat ini hanya simulasi)
         text = transcribe_audio(temp_audio_path)
         print(f"Transcribed text: {text}")
+        
+        # Jika hasil transkripsi kosong, kembalikan error ke frontend
+        if not text or text.strip() == "":
+            print("ERROR: Transkripsi audio gagal. Tidak ada input valid untuk AI.")
+            return jsonify({
+                'error': 'Transkripsi audio gagal. Silakan ulangi rekaman Anda.',
+                'text': ''
+            }), 400
 
         # 2. Gunakan LLM untuk respons yang cerdas
         # Dapatkan parameter model_type jika ada
@@ -327,12 +351,40 @@ def voice_agent():
             # Fallback ke respons sederhana jika Gemma gagal
             response_text = f"Saya mendengar Anda mengatakan: {text}. Maaf, saya mengalami masalah dalam memproses respons."
 
-        # 3. Konversi teks ke audio menggunakan gTTS yang lebih stabil
-        audio_output_path = os.path.join(UPLOAD_FOLDER, f"output_{uuid.uuid4()}.mp3")
-        print(f"INFO: Menggunakan gTTS untuk menghasilkan audio dari teks: {response_text}")
-        from gtts import gTTS
-        tts = gTTS(text=response_text, lang='id')
-        tts.save(audio_output_path)
+        # 3. Konversi teks ke audio menggunakan fungsi text_to_speech dengan sampel suara
+        # Jika voice_type == "duwi", gunakan output .wav lalu convert ke .mp3
+        if voice_type == "duwi":
+            wav_output_path = os.path.join(UPLOAD_FOLDER, f"output_{uuid.uuid4()}.wav")
+            print(f"DEBUG: Memanggil text_to_speech dengan voice_type=duwi, output_path={wav_output_path}")
+            success = text_to_speech(response_text, wav_output_path, voice_type=voice_type)
+            if success:
+                # Convert wav ke mp3 untuk frontend
+                try:
+                    import subprocess
+                    mp3_output_path = os.path.join(UPLOAD_FOLDER, f"output_{uuid.uuid4()}.mp3")
+                    subprocess.run(["ffmpeg", "-y", "-i", wav_output_path, mp3_output_path], check=True)
+                    audio_output_path = mp3_output_path
+                    print(f"INFO: File audio berhasil dikonversi ke: {audio_output_path}")
+                except Exception as e:
+                    print(f"ERROR: Konversi wav ke mp3 gagal: {e}")
+                    audio_output_path = wav_output_path
+            else:
+                print("WARNING: text_to_speech gagal, fallback ke gTTS")
+                audio_output_path = os.path.join(UPLOAD_FOLDER, f"output_{uuid.uuid4()}.mp3")
+                from gtts import gTTS
+                tts = gTTS(text=response_text, lang='id')
+                tts.save(audio_output_path)
+        else:
+            # Untuk selain duwi, tetap gunakan mp3/gTTS jika perlu
+            audio_output_path = os.path.join(UPLOAD_FOLDER, f"output_{uuid.uuid4()}.mp3")
+            print(f"DEBUG: Memanggil text_to_speech dengan voice_type={voice_type}, output_path={audio_output_path}")
+            success = text_to_speech(response_text, audio_output_path, voice_type=voice_type)
+            if not success:
+                print("WARNING: text_to_speech gagal, fallback ke gTTS")
+                audio_output_path = os.path.join(UPLOAD_FOLDER, f"output_{uuid.uuid4()}.mp3")
+                from gtts import gTTS
+                tts = gTTS(text=response_text, lang='id')
+                tts.save(audio_output_path)
         print(f"INFO: File audio berhasil disimpan ke: {audio_output_path}")
         print(f"INFO: File exists: {os.path.exists(audio_output_path)}, Size: {os.path.getsize(audio_output_path) if os.path.exists(audio_output_path) else 0} bytes")
 
@@ -355,21 +407,30 @@ def voice_agent():
         except Exception as e:
             print(f"WARNING: Gagal menghapus file audio sementara: {e}")
         
-        # Kirim file audio sebagai response (MP3)
+        # Kirim file audio sebagai response
         try:
+            # Tentukan MIME type yang benar berdasarkan ekstensi file
+            if audio_output_path.endswith('.wav'):
+                mimetype = 'audio/wav'
+                download_name = "response.wav"
+            else:
+                mimetype = 'audio/mpeg'
+                download_name = "response.mp3"
+                
+            print(f"INFO: Mengirim file audio dengan MIME type: {mimetype}")
             response = send_file(
                 audio_output_path,
-                mimetype='audio/mpeg',
-                as_attachment=False,  # Ubah ke False agar browser memutar audio, bukan mendownload
-                download_name='response.mp3'
+                mimetype=mimetype,
+                as_attachment=False,  # False agar browser memutar audio, bukan mendownload
+                download_name=download_name
             )
             # Tambahkan header untuk CORS
             response.headers['Access-Control-Allow-Origin'] = '*'
             return response
         except Exception as e:
-            print(f"ERROR: Gagal mengirim file audio: {e}")
+            print(f"ERROR: Gagal mengirim file audio: {str(e)}")
             return jsonify({
-                'error': f'Failed to send audio file: {str(e)}',
+                'error': 'Failed to send audio file',
                 'text': response_text
             }), 500
 
@@ -388,6 +449,7 @@ def index():
     return app.send_static_file('index.html')
 
 if __name__ == '__main__':
-    # Gunakan port dari environment variable jika ada
-    port = int(os.environ.get('PORT', 5050))
+    # Tetapkan port 5053 secara eksplisit
+    port = 5053
+    print(f"INFO: Menjalankan aplikasi di port {port}")
     app.run(host='0.0.0.0', port=port, debug=True)
